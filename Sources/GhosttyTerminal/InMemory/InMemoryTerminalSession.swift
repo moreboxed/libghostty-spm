@@ -73,7 +73,8 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     /// `setSurface(_:)`, preventing reads against a surface mid-replacement.
     public func readViewportText() -> String? {
         lock.lock()
-        defer { lock.unlock() }
+        let surface = self.surface
+        lock.unlock()
         guard let surface else { return nil }
 
         let topLeft = ghostty_point_s(
@@ -125,7 +126,9 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     /// Feed data into the terminal from the host backend.
     public func receive(_ data: Data) {
         lock.lock()
-        defer { lock.unlock() }
+        let surface = self.surface
+        lock.unlock()
+
         guard let surface else {
             TerminalDebugLog.log(
                 .output,
@@ -170,7 +173,9 @@ public final class InMemoryTerminalSession: @unchecked Sendable {
     /// Signal that the host-managed process has exited.
     public func finish(exitCode: UInt32, runtimeMilliseconds: UInt64) {
         lock.lock()
-        defer { lock.unlock() }
+        let surface = self.surface
+        lock.unlock()
+
         guard let surface else {
             TerminalDebugLog.log(
                 .lifecycle,
