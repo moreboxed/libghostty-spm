@@ -27,6 +27,18 @@ if [ ! -d "$PATCH_DIR" ]; then
     exit 0
 fi
 
+# When the same source tree is used for multiple target builds (e.g. aarch64
+# then x86_64), re-applying overlapping .patch files fails validation because
+# later patches change the context that earlier patches expect. Skip the whole
+# patch sequence if the source has already been patched with the current set.
+PATCH_MARKER="$SOURCE_DIR/.libghostty-spm-patches-applied"
+PATCH_HASH=$(find "$PATCH_DIR" -type f \( -name '*.patch' -o -name '*.sh' \) | sort | xargs shasum -a 256 | shasum -a 256 | awk '{print $1}')
+
+if [ -f "$PATCH_MARKER" ] && [ "$(cat "$PATCH_MARKER")" = "$PATCH_HASH" ]; then
+    echo "[+] patches already applied (hash $PATCH_HASH)"
+    exit 0
+fi
+
 apply_unified_patch() {
     local patch_file="$1"
 
@@ -77,3 +89,6 @@ for patch_file in "$PATCH_DIR"/*; do
             ;;
     esac
 done
+
+echo "$PATCH_HASH" > "$PATCH_MARKER"
+echo "[+] recorded patch set hash: $PATCH_HASH"

@@ -90,6 +90,8 @@ jobs:
         run: |
           git clone https://github.com/ghostty-org/ghostty ./References/ghostty-upstream
           git -C ./References/ghostty-upstream checkout "${{ steps.ref.outputs.build_ref }}"
+          echo "[*] checked out ghostty ref: $(git -C ./References/ghostty-upstream describe --tags --exact-match 2>/dev/null || git -C ./References/ghostty-upstream rev-parse --short HEAD)"
+          git -C ./References/ghostty-upstream log --oneline -1
 
       - name: Build libghostty C core
         run: |
