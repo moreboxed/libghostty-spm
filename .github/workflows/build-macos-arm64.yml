@@ -123,9 +123,8 @@ jobs:
           path: ./build/libghostty-staging
 
       - name: Build Release XCFrameworks
-        env:
-          LIBGHOSTTY_STAGING: "$PWD/build/libghostty-staging"
         run: |
+          export LIBGHOSTTY_STAGING="$PWD/build/libghostty-staging"
           ./Script/build-release-xcframeworks.sh \
             "" \
             "$PWD/build/release-xcframeworks"
