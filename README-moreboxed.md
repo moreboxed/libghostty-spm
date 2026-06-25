@@ -21,7 +21,9 @@ failed to build module 'GhosttyTerminal'; this SDK is not supported by the compi
 'Apple Swift version 6.3.1 ...')
 ```
 
-**Keep `libghostty-spm` release builds and `moreboxed/moreboxed` CI on the same macOS runner image.** As of this writing both use `macos-26` and produce Swift 6.3.x interfaces. If either side changes runner images, verify the Swift compiler version matches before cutting a new release.
+**Keep `libghostty-spm` release builds and `moreboxed/moreboxed` CI on the same macOS runner image and Xcode version.** As of this writing both use `macos-15` with `/Applications/Xcode_16.4.app` and produce Swift 6.3.x interfaces. If either side changes runner images or Xcode versions, verify the Swift compiler version matches before cutting a new release.
+
+We intentionally stay on `macos-15` for the libghostty Zig build: newer runner images (e.g. `macos-26`) ship an SDK that Zig 0.15.2 cannot cross-compile against reliably, producing undefined system symbol errors such as `__availability_version_check`, `_abort`, `_arc4random_buf`, etc.
 
 ### Checking the compiler version
 
