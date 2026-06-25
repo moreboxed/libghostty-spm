@@ -1,0 +1,139 @@
+name: Build GhosttyKit (macOS arm64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ghostty_ref:
+        description: "Ghostty tag or commit. Leave empty to use the latest release."
+        required: false
+        type: string
+        default: ""
+      skip_release:
+        description: "Skip creating a GitHub release (build and test only)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-macos-arm64-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Determine Ghostty Ref
+        id: ref
+        run: |
+          INPUT_REF="${{ github.event.inputs.ghostty_ref }}"
+
+          if [ -n "$INPUT_REF" ]; then
+            BUILD_REF="$INPUT_REF"
+            echo "[*] using provided ghostty ref: $BUILD_REF"
+          else
+            BUILD_REF=$(
+              gh api "repos/ghostty-org/ghostty/tags?per_page=100" --paginate --jq '.[].name' |
+                python3 -c 'import re, sys; tags = [line.strip() for line in sys.stdin if re.fullmatch(r"v?\d+\.\d+\.\d+", line.strip())]; print(max(tags, key=lambda tag: tuple(int(part) for part in (tag[1:] if tag.startswith("v") else tag).split("."))), end="")'
+            )
+            echo "[*] latest upstream ghostty ref: $BUILD_REF"
+          fi
+
+          if [ -z "$BUILD_REF" ]; then
+            echo "[!] failed to determine ghostty ref"
+            exit 1
+          fi
+
+          RESOLVED_SHA=$(gh api "repos/ghostty-org/ghostty/commits/$BUILD_REF" --jq '.sha')
+          if [ -z "$RESOLVED_SHA" ]; then
+            echo "[!] failed to resolve commit sha for $BUILD_REF"
+            exit 1
+          fi
+
+          echo "build_ref=$BUILD_REF" >> "$GITHUB_OUTPUT"
+          echo "resolved_sha=$RESOLVED_SHA" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine Release Tag
+        id: release
+        run: |
+          git fetch --tags origin
+
+          # Auto-increment storage-macos-arm64.* tags.
+          STORAGE_TAG=$(
+            git tag --list |
+              python3 -c 'import re, sys; versions = [tuple(int(part) for part in tag.split(".")[-3:]) for tag in (line.strip() for line in sys.stdin) if re.fullmatch(r"storage-macos-arm64\.\d+\.\d+\.\d+", tag)]; major, minor, patch = max(versions) if versions else (0, 0, 0); print(f"storage-macos-arm64.{major}.{minor}.{patch + 1}", end="")'
+          )
+
+          echo "storage_tag=$STORAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "[*] release tag: $STORAGE_TAG"
+
+      - name: Clone Ghostty
+        run: |
+          git clone https://github.com/ghostty-org/ghostty ./References/ghostty-upstream
+          git -C ./References/ghostty-upstream checkout "${{ steps.ref.outputs.build_ref }}"
+
+      - name: Build Release XCFrameworks
+        run: |
+          ./Script/build-release-xcframeworks.sh \
+            "$PWD/References/ghostty-upstream" \
+            "$PWD/build/release-xcframeworks"
+
+      - name: Build Consumer Package Snippet
+        id: consumer
+        run: |
+          STORAGE_TAG="${{ steps.release.outputs.storage_tag }}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/$REPO/releases/download/$STORAGE_TAG"
+          python3 ./Script/generate-consumer-manifest.py \
+            "$PWD/build/release-xcframeworks" \
+            "$BASE_URL"
+
+      - name: Test Package
+        if: github.event.inputs.skip_release == 'true'
+        run: |
+          cp Package.local.swift Package.swift
+          ./Script/test.sh
+          swift test
+
+      - name: Upload Artifacts (no release)
+        if: github.event.inputs.skip_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghostty-macos-arm64-xcframeworks
+          path: ./build/release-xcframeworks/*.xcframework.zip
+          compression-level: 0
+          retention-days: 7
+
+      - name: Create Release
+        if: github.event.inputs.skip_release != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.storage_tag }}
+          body: |
+            GhosttyKit macOS arm64 XCFrameworks
+
+            Built from ghostty ref: ${{ steps.ref.outputs.build_ref }}
+            Built from ghostty sha: ${{ steps.ref.outputs.resolved_sha }}
+
+            Copy the contents of `Package.consumer.swift` into `Moreboxed/ui/Package.swift`.
+          draft: false
+          prerelease: false
+          files: |
+            ./build/release-xcframeworks/*.xcframework.zip
+            ./build/release-xcframeworks/Package.consumer.swift
