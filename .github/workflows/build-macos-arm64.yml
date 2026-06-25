@@ -96,7 +96,21 @@ jobs:
           ./Script/build-ghostty.sh \
             "$PWD/References/ghostty-upstream" \
             "aarch64-macos" \
-            "$PWD/build/libghostty-staging"
+            "$PWD/build/libghostty-staging-aarch64"
+          ./Script/build-ghostty.sh \
+            "$PWD/References/ghostty-upstream" \
+            "x86_64-macos" \
+            "$PWD/build/libghostty-staging-x86_64"
+
+      - name: Create universal libghostty staging
+        run: |
+          mkdir -p "$PWD/build/libghostty-staging/lib" "$PWD/build/libghostty-staging/include"
+          cp -R "$PWD/build/libghostty-staging-aarch64/include/" "$PWD/build/libghostty-staging/include/"
+          lipo -create \
+            "$PWD/build/libghostty-staging-aarch64/lib/libghostty.a" \
+            "$PWD/build/libghostty-staging-x86_64/lib/libghostty.a" \
+            -output "$PWD/build/libghostty-staging/lib/libghostty.a"
+          file "$PWD/build/libghostty-staging/lib/libghostty.a"
 
       - name: Upload libghostty staging
         uses: actions/upload-artifact@v4
@@ -121,6 +135,12 @@ jobs:
         with:
           name: libghostty-staging
           path: ./build/libghostty-staging
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          echo "[*] swift version: $(swift --version)"
+          echo "[*] xcodebuild version: $(xcodebuild -version)"
 
       - name: Build Release XCFrameworks
         run: |

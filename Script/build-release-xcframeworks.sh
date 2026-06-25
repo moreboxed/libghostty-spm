@@ -137,37 +137,41 @@ PLIST
     echo "[*] created $module.xcframework"
 }
 
-# libghostty is the C core; package it as its own xcframework.
+# libghostty is the C core; package it as its own framework xcframework.
 echo "[*] packaging libghostty"
-mkdir -p "$STAGE_DIR/libghostty.framework/Headers" "$STAGE_DIR/libghostty.framework/Modules"
-cp "$LIBGHOSTTY_A" "$STAGE_DIR/libghostty.framework/libghostty"
-cp -R "$LIBGHOSTTY_HEADERS/" "$STAGE_DIR/libghostty.framework/Headers/"
-cp "$STAGE_DIR/libghostty.framework/Headers/module.modulemap" "$STAGE_DIR/libghostty.framework/Modules/module.modulemap"
-cat > "$STAGE_DIR/libghostty.framework/Info.plist" <<PLIST
+
+FW="$STAGE_DIR/libghostty.framework"
+rm -rf "$FW"
+mkdir -p "$FW/Headers" "$FW/Modules"
+cp "$LIBGHOSTTY_A" "$FW/libghostty"
+cp "$LIBGHOSTTY_HEADERS/ghostty.h" "$FW/Headers/ghostty.h"
+
+# SwiftPM auto-generates a module map for binary targets. Keeping the header
+# in Headers/ and referencing it as "Headers/ghostty.h" in the source module
+# map causes SwiftPM to preserve the full path, so Clang can resolve it.
+cat > "$FW/Modules/module.modulemap" <<'MM'
+module libghostty {
+    umbrella header "Headers/ghostty.h"
+    export *
+}
+MM
+
+cat > "$FW/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
     <key>CFBundleExecutable</key>
     <string>libghostty</string>
     <key>CFBundleIdentifier</key>
     <string>com.moreboxed.libghostty-spm.libghostty</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>libghostty</string>
     <key>CFBundlePackageType</key>
     <string>FMWK</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
 </dict>
 </plist>
 PLIST
-xcodebuild -create-xcframework -framework "$STAGE_DIR/libghostty.framework" -output "$OUTPUT_DIR/libghostty.xcframework" > /dev/null
+
+xcodebuild -create-xcframework -framework "$FW" -output "$OUTPUT_DIR/libghostty.xcframework" > /dev/null
 echo "[*] created libghostty.xcframework"
 
 # Swift modules. MSDisplayLink is a dependency and its object lives inside the
