@@ -11,19 +11,19 @@ GHOSTTY_SOURCE_DIR="${1:-}"
 
 OUTPUT_DIR="${2:-$PWD/build/release-xcframeworks}"
 
-if [ -z "$GHOSTTY_SOURCE_DIR" ]; then
-    echo "Usage: $0 <ghostty_source_dir> [output_dir]"
-    exit 1
-fi
-
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
 if [ -n "${LIBGHOSTTY_STAGING:-}" ] && [ -f "$LIBGHOSTTY_STAGING/lib/libghostty.a" ]; then
     echo "[*] using prebuilt libghostty staging from $LIBGHOSTTY_STAGING"
     cp -R "$LIBGHOSTTY_STAGING" "$OUTPUT_DIR/libghostty-staging"
-elif [ ! -f "$GHOSTTY_SOURCE_DIR/include/ghostty.h" ]; then
+elif [ -n "$GHOSTTY_SOURCE_DIR" ] && [ -f "$GHOSTTY_SOURCE_DIR/include/ghostty.h" ]; then
+    echo "[*] will build libghostty from $GHOSTTY_SOURCE_DIR"
+elif [ -n "$GHOSTTY_SOURCE_DIR" ]; then
     echo "[!] ghostty source not found: $GHOSTTY_SOURCE_DIR"
+    exit 1
+else
+    echo "[!] usage: $0 <ghostty_source_dir> [output_dir] (or set LIBGHOSTTY_STAGING)"
     exit 1
 fi
 
