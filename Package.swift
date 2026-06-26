@@ -45,8 +45,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "libghostty",
-            url: "https://github.com/moreboxed/libghostty-spm/releases/download/storage.1.0.0/GhosttyKit.xcframework.zip",
-            checksum: "8617ed3ada9517cc3d68961dbafc31d949453a806060fa042b73bcee81ca6bd1"
+            url: "https://github.com/moreboxed/libghostty-spm/releases/download/storage.1.0.1/GhosttyKit.xcframework.zip",
+            checksum: "404f7b8f5aa7176cbf3c62d63f4eb8df4a82ead14e1828b11e52ae87a3e2e583"
         ),
         .testTarget(
             name: "GhosttyKitTest",
