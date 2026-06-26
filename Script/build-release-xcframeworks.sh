@@ -61,7 +61,7 @@ for scheme in "${SWIFT_SCHEMES[@]}"; do
         -configuration Release \
         BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
         SKIP_INSTALL=NO \
-        OTHER_SWIFT_FLAGS="\$(OTHER_SWIFT_FLAGS) -emit-module-interface" \
+        OTHER_SWIFT_FLAGS="\$(OTHER_SWIFT_FLAGS) -emit-module" \
         2>&1 | tail -5
 done
 
