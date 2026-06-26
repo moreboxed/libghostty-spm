@@ -80,11 +80,7 @@ build_swift_framework() {
     libtool -static -no_warning_for_no_symbols -o "$fw/$module" "$o_file"
 
     # Swift module interface artifacts.
-    # When the same module appears as a dependency in another scheme's
-    # archive (e.g. GhosttyKit building GhosttyTheme), only the textual
-    # .swiftinterface is produced in that directory.  Merge artifacts
-    # from every matching BuildProductsPath so we always pick up the
-    # binary .swiftmodule from the module's own scheme archive.
+    # Copy textual interfaces from every matching BuildProductsPath directory.
     local sm_dir
     local found=0
     while IFS= read -r -d '' sm_dir; do
@@ -97,6 +93,16 @@ build_swift_framework() {
         echo "[!] missing swiftmodule for $module"
         exit 1
     fi
+
+    # Xcode 26.5 / Swift 6.3.2 may omit the binary .swiftmodule from
+    # BuildProductsPath.  Hunt for it elsewhere in DerivedData and copy
+    # it separately so consumers have accessor metadata.
+    local sm_binary
+    while IFS= read -r -d '' sm_binary; do
+        cp -n "$sm_binary" "$fw/Modules/$module.swiftmodule/" 2>/dev/null || true
+        echo "[+] $module: included $(basename "$sm_binary")"
+    done < <(find "$DERIVED_DATA_PATH" \
+        -path "*/$module.swiftmodule" -name "*.swiftmodule" -type f -print0)
 
     # Generated Objective-C header, if any.
     local header
